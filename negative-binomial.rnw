@@ -1,0 +1,175 @@
+\SweaveOpts{results=hide}
+\documentclass{dragonfly-article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\title{Negative binomial parameterisations}
+\author{Edward Abraham}
+\begin{document}
+\maketitle
+
+\section{Successes and failures}
+
+The negative binomial distribution estimates the number of failures which occur in a sequence
+of Bernoulli trials before a target number of successes is
+reached. For example, if the number of successes ($S$) is 3, then the sequences below
+are some of the possible sequences where 2 failures ($F$) occurred before reaching the target number of success:
+\begin{eqnarray*}
+&FSSFS \\
+&SFFSS \\
+&FFSSS \\
+&SFSFS \\
+\end{eqnarray*}
+
+If the probability of success is $p$ ($0\leq p \leq 1$), and the target number of successes, or size, is $r$ 
+(the negative binomial is described above for integer value of $r$, but the distribution is defined
+for any $r \in \mathbb{R}^+$),
+then the negative binomial distribution may be parameterised as
+\begin{equation}
+\mathrm{Negative Binomial}(y | p, r)  = \binom{y + r - 1}{y} (1 - p)^y p^r ,
+\label{eq:nb}
+\end{equation}
+where $y$ is a positive integer. There are many alternative parameterisations of the negative
+binomial, this definition follows the parameterisation used by the {\tt R} function {\tt rnbinom}.
+With this parameterisation, the negative binomial distribution has mean $r(1-p)/p$ and variance $r(1-p)/p^2$.
+
+The binomial coefficient is defined as
+\begin{equation}
+\binom{n}{k} = {\Gamma(n + 1) \over \Gamma(k + 1) \Gamma(n - k + 1)} .
+\end{equation}
+When $n$ and $k$ are both integers, this may be expressed as
+\begin{equation}
+\binom{n}{k} = {n! \over k! (n - k)!} .
+\end{equation}
+
+If $R$ and $S$ are two independent random variables with $R \sim \mathrm{Negative Binomial}(r, p)$
+and $S \sim \mathrm{Negative Binomial}(s, p)$, then $R + S \sim \mathrm{Negative Binomial}(r + s, p)$.
+It follows that the sum of $N$ independent draws from a negative binomial distribution
+with the same parameters $p$ and $r$ has the distribution $\mathrm{Negative Binomial}(Nr, p)$.
+{\footnotesize \tt
+<<sf>>=
+# Check the parameterisation of the base R function, rnbinom
+library(testthat)
+r = 3
+p = 0.4
+n = 3
+expect_equal(mean(rnbinom(1e6, size=r, prob=p)), r*(1-p)/p, tolerance=0.01)
+expect_equal(var(rnbinom(1e6, size=r, prob=p)), r*(1-p)/p^2, tolerance=0.01)
+@
+}
+
+\section{Scale and shape}
+In Stan, the negative-binomial distribution has two parameterisations. The 
+first parameterisation ($\mathrm{NegBinomial}$, \autoref{eq:nb1}) is parameterised
+with a scale parameter $\alpha$ and a shape parameter $\beta$:
+\begin{equation}
+\mathrm{NegBinomial}(y | \alpha, \beta) = \binom{y + \alpha - 1}{\alpha - 1} \left( {1 \over \beta + 1} \right)^y \left( {\beta \over \beta + 1} \right)^\alpha .
+\label{eq:nb1}
+\end{equation}
+This parameterisation is equivalent to \autoref{eq:nb}, with $r=\alpha$ and $p=\beta/(1+\beta)$. With
+this parameterisation, the negative binomial has mean $\alpha/\beta$ and variance $\alpha(\beta+1)/\beta^2$.
+
+The sum of $N$ draws from a negative binomial 
+distribution with scale $\alpha$ and shape $\beta$ is equivalent to
+a draw from a distribution with scale $N\alpha$ and shape $\beta$.
+
+The Poisson distribution has variance equal to the mean, $\mu$. The overdispersion 
+of the negative binomial relative to the mean (increase in dispersion relative 
+to the Poisson distribution) is  $1 + 1/\beta$.  As $\beta \rightarrow \infty$ then the
+overdispersion goes to one, and the negative binomial reduces to a Poisson distribution.
+As $\theta \rightarrow 0$, the increase in variance goes to infinity.
+
+{\footnotesize \tt
+<<ss>>=
+# Check the parameterisation of Stan function, neg_binomial_rng
+library(rstan)
+alpha = r
+beta = p / (1 - p)
+mc = sprintf("generated quantities {int y; y = neg_binomial_rng(%s, %s);}", alpha, beta)
+f = stan(model_code=mc, iter=1e6, chains=1, algorithm='Fixed_param')
+expect_equal(mean(extract(f)$y), alpha / beta, tolerance=0.01)
+expect_equal(var(extract(f)$y), alpha * (beta + 1) / beta^2, tolerance=0.01)
+expect_equal(mean(extract(f)$y), r * (1 - p) / p, tolerance=0.01)
+expect_equal(var(extract(f)$y), r * (1 - p)/ p^2, tolerance=0.01)
+@
+}
+
+
+\section{Mean and dispersion}
+The 
+second parameterisation ($\mathrm{NegBinomial2}$, \autoref{eq:nb2}) is parameterised
+with mean $\mu$ and dispersion $\phi$:
+\begin{equation}
+\mathrm{NegBinomial2}(y | \mu, \phi) = \binom{y + \phi - 1}{y} \left( {\mu \over \mu + \phi} \right)^y \left( {\phi \over \mu + \phi} \right)^\phi .
+\label{eq:nb2}
+\end{equation}
+This parameterisation is equivalent to \autoref{eq:nb}, with $r=\phi$ and $p=\phi/(\mu + \phi)$.
+With this parameterisation, the distribution has mean $\mu$ and variance $\mu + \mu^2/\phi$.
+The parameterisation is equivalent to \autoref{eq:nb2}, with $\alpha = \phi$ and $\beta = \phi/\mu$.
+
+The sum of $N$ draws from a distribution with mean $\mu$ and dispersion $\phi$ is equivalent to
+a draw from a distribution with mean $N\mu$ and dispersion $N\phi$.
+
+
+{\footnotesize \tt
+<<ss>>=
+# Check the parameterisation of Stan function, neg_binomial_2_rng
+mu = r * (1 - p) / p
+phi = r
+mc = sprintf("generated quantities {int y; y = neg_binomial_2_rng(%s, %s);}", mu, phi)
+g = stan(model_code=mc, iter=1e6, chains=1, algorithm='Fixed_param')
+expect_equal(mean(extract(g)$y), mu, tolerance=0.01)
+expect_equal(var(extract(g)$y), mu + mu^2 / phi, tolerance=0.01)
+expect_equal(mean(extract(g)$y), r * (1 - p) / p, tolerance=0.01)
+expect_equal(var(extract(g)$y), r * (1 - p)/ p^2, tolerance=0.01)
+@
+}
+
+\section{Gamma-Poisson mixture}
+
+An alternate parameterisation of the negative binomial distribution is as
+a gamma-Poisson mixture:
+\begin{equation}
+\mathrm{NegBinomial}(y | \alpha, \beta) = \mathrm{Poisson}(\mathrm{Gamma}(\alpha, \beta))
+\label{eq:gp}
+\end{equation}
+where $\alpha$ is the shape, and $\beta$ is the rate (or inverse scale) parameter. The parameters of the
+gamma-Poisson mixture are the same as the parameters of the  
+first Stan parameterisation of the negative binomial (\autoref{eq:nb1}).
+{\footnotesize \tt
+<<gpss>>=
+# The gamma-Poisson mixture and the Stan function, neg_binomial_rng
+y <- rpois(1e6, lambda=rgamma(1e6, shape=alpha, rate=beta))
+expect_equal(mean(y), alpha / beta, tolerance=0.01)
+expect_equal(var(y), alpha * (beta + 1) / beta^2, tolerance=0.01)
+expect_equal(mean(y), mean(extract(f)$y), tolerance=0.01)
+expect_equal(var(y), var(extract(f)$y), tolerance=0.01)
+@
+}
+
+\section{Gamma-Poisson mixture (mean and dispersion)}
+
+The negative binomial distribution may also be represented
+as a gamma-Poisson mixture, where the gamma distribution
+has unit mean:
+\begin{equation}
+\mathrm{NegBinomial2}(y | \mu, \phi) = \mathrm{Poisson}(\mu \mathrm{Gamma}(\phi, \phi)).
+\label{eq:gp}
+\end{equation}
+The gamma distribution has shape and rate of $\phi$, and so has a unit mean. The gamma
+distribution acts as a multiplier on the mean.
+With this parameterisation, the  parameters of the
+gamma-Poisson mixture are the same as the parameters of the  
+second Stan parameterisation of the negative binomial (\autoref{eq:nb2}).
+{\footnotesize \tt
+<<gpmp>>=
+# The gamma-Poisson mixture and the Stan function, neg_binomial_2_rng
+y <- rpois(1e6, lambda = mu * rgamma(1e6, shape=phi, rate=phi))
+expect_equal(mean(y), mu, tolerance=0.01)
+expect_equal(var(y), mu + mu^2 / phi, tolerance=0.01)
+expect_equal(mean(y), mean(extract(g)$y), tolerance=0.01)
+expect_equal(var(y), var(extract(g)$y), tolerance=0.01)
+@
+}
+
+\end{document}
