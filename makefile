@@ -1,4 +1,4 @@
-DOCKER := docker.dragonfly.co.nz/dragonverse-18.04:latest
+DOCKER := dragonflyscience/dragonverse-18.04:latest
 
 RUN ?= docker run -it --rm --net=host --user=$$(id -u):$$(id -g) -e RUN=  -v$$(pwd):/work -w /work $(DOCKER)
 

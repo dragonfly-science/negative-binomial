@@ -21,40 +21,54 @@ are some of the possible sequences where 2 failures ($F$) occurred before reachi
 &SFSFS \\
 \end{eqnarray*}
 
-If the probability of success is $p$ ($0\leq p \leq 1$), and the target number of successes, or size, is $r$ 
-(the negative binomial is described above for integer value of $r$, but the distribution is defined
-for any $r \in \mathbb{R}^+$),
+If the probability of success is $p$ ($0\leq p \leq 1$), and the target number of successes, or size, is $r$, 
 then the negative binomial distribution may be parameterised as
 \begin{equation}
-\mathrm{Negative Binomial}(y | p, r)  = \binom{y + r - 1}{y} (1 - p)^y p^r ,
+\mathrm{Negative Binomial}(i | r, p)  = \binom{i + r - 1}{i} (1 - p)^i p^r ,
 \label{eq:nb}
 \end{equation}
-where $y$ is a positive integer. There are many alternative parameterisations of the negative
-binomial, this definition follows the parameterisation used by the {\tt R} function {\tt rnbinom}.
+where $i$ is a non-negative integer. 
+The negative binomial is described above for integer value of $r$, but the distribution may be defined
+for any non-negative real size, $r$, with the binomial coefficient defined 
+as $$\binom{i + r - 1}{i} = \frac{\Gamma(i + r)}{ i!\Gamma(r))} .$$  
+
+
+This parameterisation follows the parameterisation used by the {\tt R} function {\tt rnbinom}.
 With this parameterisation, the negative binomial distribution has mean $r(1-p)/p$ and variance $r(1-p)/p^2$.
-
-The binomial coefficient is defined as
-\begin{equation}
-\binom{n}{k} = {\Gamma(n + 1) \over \Gamma(k + 1) \Gamma(n - k + 1)} .
-\end{equation}
-When $n$ and $k$ are both integers, this may be expressed as
-\begin{equation}
-\binom{n}{k} = {n! \over k! (n - k)!} .
-\end{equation}
-
-If $R$ and $S$ are two independent random variables with $R \sim \mathrm{Negative Binomial}(r, p)$
-and $S \sim \mathrm{Negative Binomial}(s, p)$, then $R + S \sim \mathrm{Negative Binomial}(r + s, p)$.
-It follows that the sum of $N$ independent draws from a negative binomial distribution
-with the same parameters $p$ and $r$ has the distribution $\mathrm{Negative Binomial}(Nr, p)$.
 {\footnotesize \tt
 <<sf>>=
 # Check the parameterisation of the base R function, rnbinom
 library(testthat)
 r = 3
 p = 0.4
-n = 3
-expect_equal(mean(rnbinom(1e6, size=r, prob=p)), r*(1-p)/p, tolerance=0.01)
-expect_equal(var(rnbinom(1e6, size=r, prob=p)), r*(1-p)/p^2, tolerance=0.01)
+samples = rnbinom(1e6, size=r, prob=p)
+expect_equal(mean(samples), r*(1-p)/p, tolerance=0.01)
+expect_equal(var(samples), r*(1-p)/p^2, tolerance=0.01)
+@
+}
+
+The sum of two draws
+from the negative binomial distribution, with the same probability of success, 
+has the same distribution as
+a single draw from a negative binomial with the summed target number of successes.
+If draws are taken from two negative binomial distributions
+ $\mathrm{NegativeBinomial}(r, p)$ and $\mathrm{NegativeBinomial}(q, p)$, then the distribution of the sum is $\mathrm{P}$,
+ where, for positive integers $i$, $j$, and $k$, constrained so that $i + j = k$,
+\begin{eqnarray}
+	\mathrm{P}(k) &=& \sum_{i+j=k} \mathrm{NegativeBinomial}(i | r, p) \mathrm{NegativeBinomial}(j | q, p) \\
+	              &=& \sum_{i+j=k} \binom{i+r-1}{i} (1-p)^i p^r  \binom{j+q-1}{j} (1-p)^j p^q \\
+		      &=& (1-p)^k p^{r+q} \sum_{i+j=k} \binom{i + r - 1}{i} \binom{j + q - 1}{j}
+\end{eqnarray}
+The sum of the binomial coefficients is  $\sum_{i+j=k} \binom{i + r - 1}{i} \binom{j + q - 1}{j} = \binom{k + r + q - 1}{k}$,
+and it follows that $\mathrm{P}(k) = \mathrm{NegativeBinomial}(k | r + q, p)$. Similarly, the sum of $N$ independent draws from a negative binomial distribution
+with the same parameters $p$ and $r$ has the distribution $\mathrm{Negative Binomial}(Nr, p)$, both the mean and the variance
+are proportional to $N$.
+{\footnotesize \tt
+<<sf>>=
+# Now check that a sum of samples has the expected mean and variance
+dim(samples) <- c(10, 1e5)
+expect_equal(mean(apply(samples, 2, sum)), 10*r*(1-p)/p, tolerance=0.01)
+expect_equal(var(apply(samples, 2, sum)), 10*r*(1-p)/p^2, tolerance=0.01)
 @
 }
 
@@ -66,9 +80,9 @@ with a scale parameter $\alpha$ and a shape parameter $\beta$:
 \mathrm{NegBinomial}(y | \alpha, \beta) = \binom{y + \alpha - 1}{\alpha - 1} \left( {1 \over \beta + 1} \right)^y \left( {\beta \over \beta + 1} \right)^\alpha .
 \label{eq:nb1}
 \end{equation}
-This parameterisation is equivalent to \autoref{eq:nb}, with $r=\alpha$ and $p=\beta/(1+\beta)$. With
+This parameterisation is equivalent to \autoref{eq:nb}, with $r=\alpha$ and $p=\beta/(1+\beta)$
+(i.e., $\alpha=r$, and $\beta=p/(1-p)$). With
 this parameterisation, the negative binomial has mean $\alpha/\beta$ and variance $\alpha(\beta+1)/\beta^2$.
-
 The sum of $N$ draws from a negative binomial 
 distribution with scale $\alpha$ and shape $\beta$ is equivalent to
 a draw from a distribution with scale $N\alpha$ and shape $\beta$.
@@ -77,7 +91,7 @@ The Poisson distribution has variance equal to the mean, $\mu$. The overdispersi
 of the negative binomial relative to the mean (increase in dispersion relative 
 to the Poisson distribution) is  $1 + 1/\beta$.  As $\beta \rightarrow \infty$ then the
 overdispersion goes to one, and the negative binomial reduces to a Poisson distribution.
-As $\theta \rightarrow 0$, the increase in variance goes to infinity.
+As $\beta \rightarrow 0$, the mean, variance, and overdispersion go to infinity.
 
 {\footnotesize \tt
 <<ss>>=
@@ -89,27 +103,25 @@ mc = sprintf("generated quantities {int y; y = neg_binomial_rng(%s, %s);}", alph
 f = stan(model_code=mc, iter=1e6, chains=1, algorithm='Fixed_param')
 expect_equal(mean(extract(f)$y), alpha / beta, tolerance=0.01)
 expect_equal(var(extract(f)$y), alpha * (beta + 1) / beta^2, tolerance=0.01)
-expect_equal(mean(extract(f)$y), r * (1 - p) / p, tolerance=0.01)
-expect_equal(var(extract(f)$y), r * (1 - p)/ p^2, tolerance=0.01)
 @
 }
 
 
 \section{Mean and dispersion}
 The 
-second parameterisation ($\mathrm{NegBinomial2}$, \autoref{eq:nb2}) is parameterised
+second parameterisation used in Stan ($\mathrm{NegBinomial2}$, \autoref{eq:nb2}) is parameterised
 with mean $\mu$ and dispersion $\phi$:
 \begin{equation}
 \mathrm{NegBinomial2}(y | \mu, \phi) = \binom{y + \phi - 1}{y} \left( {\mu \over \mu + \phi} \right)^y \left( {\phi \over \mu + \phi} \right)^\phi .
 \label{eq:nb2}
 \end{equation}
-This parameterisation is equivalent to \autoref{eq:nb}, with $r=\phi$ and $p=\phi/(\mu + \phi)$.
+This parameterisation is equivalent to \autoref{eq:nb}, with $r=\phi$ and $p=\phi/(\mu + \phi)$
+(i.e., $\mu = r (1-p)/p$ and $\phi = r$).
 With this parameterisation, the distribution has mean $\mu$ and variance $\mu + \mu^2/\phi$.
-The parameterisation is equivalent to \autoref{eq:nb2}, with $\alpha = \phi$ and $\beta = \phi/\mu$.
+The parameterisation is equivalent to \autoref{eq:nb1}, with $\alpha = \phi$ and $\beta = \phi/\mu$.
 
-The sum of $N$ draws from a distribution with mean $\mu$ and dispersion $\phi$ is equivalent to
+It follows that the sum of $N$ draws from a distribution with mean $\mu$ and dispersion $\phi$ is equivalent to
 a draw from a distribution with mean $N\mu$ and dispersion $N\phi$.
-
 
 {\footnotesize \tt
 <<ss>>=
@@ -120,14 +132,12 @@ mc = sprintf("generated quantities {int y; y = neg_binomial_2_rng(%s, %s);}", mu
 g = stan(model_code=mc, iter=1e6, chains=1, algorithm='Fixed_param')
 expect_equal(mean(extract(g)$y), mu, tolerance=0.01)
 expect_equal(var(extract(g)$y), mu + mu^2 / phi, tolerance=0.01)
-expect_equal(mean(extract(g)$y), r * (1 - p) / p, tolerance=0.01)
-expect_equal(var(extract(g)$y), r * (1 - p)/ p^2, tolerance=0.01)
 @
 }
 
 \section{Gamma-Poisson mixture}
 
-An alternate parameterisation of the negative binomial distribution is as
+An further parameterisation of the negative binomial distribution is as
 a gamma-Poisson mixture:
 \begin{equation}
 \mathrm{NegBinomial}(y | \alpha, \beta) = \mathrm{Poisson}(\mathrm{Gamma}(\alpha, \beta))
@@ -154,7 +164,7 @@ as a gamma-Poisson mixture, where the gamma distribution
 has unit mean:
 \begin{equation}
 \mathrm{NegBinomial2}(y | \mu, \phi) = \mathrm{Poisson}(\mu \mathrm{Gamma}(\phi, \phi)).
-\label{eq:gp}
+\label{eq:gp2}
 \end{equation}
 The gamma distribution has shape and rate of $\phi$, and so has a unit mean. The gamma
 distribution acts as a multiplier on the mean.
