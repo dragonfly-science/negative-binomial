@@ -1,1 +1,1 @@
-docker: docker.dragonfly.co.nz/dragonverse-20.04
+docker: docker.dragonfly.co.nz/dragonverse-22.04:2022-07-14
