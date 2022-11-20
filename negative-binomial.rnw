@@ -1,7 +1,8 @@
 \SweaveOpts{results=hide}
-\documentclass{dragonfly-article}
+\documentclass{article}
 \usepackage{amsmath}
 \usepackage{amsfonts}
+\usepackage{hyperref}
 
 \title{Negative binomial parameterisations}
 \author{Edward Abraham}
